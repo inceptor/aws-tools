@@ -12,7 +12,7 @@ Retreive a token MFA and put it on your credentials file
 List all profiles
 - [X] List all profiles
 
-## aws-cleanProfiles
+## aws-cleanProfiles.sh
 Clean all profile token (With token session or not)
 - [X] List all profiles expirated
 - [ ] Check if the profiles has a inactive key
