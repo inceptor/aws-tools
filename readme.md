@@ -12,6 +12,6 @@
 
 * aws-cleanProfiles
 - [X] List all profiles expirated (with or not token)
-- [] Check if the profiles has a inactive key
-- [] Check if there is a timeout with the request
+- [ ] Check if the profiles has a inactive key
+- [ ] Check if there is a timeout with the request
 - [X] CAN : Delete all profiles expirated
