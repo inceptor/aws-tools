@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #Check if package are install
 if ! hash jq 2>/dev/null; then
   echo "jq is not install."
