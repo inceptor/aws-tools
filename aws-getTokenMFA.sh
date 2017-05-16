@@ -115,5 +115,8 @@ echo "Profile name : $pname"
 echo "Expiration : $(echo $credentials |jq '.Credentials.Expiration')"
 echo "Switching profile : export AWS_DEFAULT_PROFILE=$pname"
 
+#Unset var for security
+unset sak ak sessionToken credentials
+
 return 0
 
