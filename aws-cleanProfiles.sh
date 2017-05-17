@@ -3,17 +3,17 @@
 #Check if package are install
 if ! hash jq 2>/dev/null; then
   echo "jq is not install."
-  return 1
+  exit 1
 fi
 
 if ! hash aws 2>/dev/null; then
   echo "aws cli is not install."
-  return 1
+  exit 1
 fi
 
 if ! hash pcregrep 2>/dev/null; then
   echo "pcre (pcregrep) is not install."
-  return 1
+  exit 1
 fi
 
 #Retrive some file location

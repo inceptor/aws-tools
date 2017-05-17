@@ -3,17 +3,17 @@
 #Check if package are install
 if ! hash jq 2>/dev/null; then
   echo "jq is not install."
-  return 1
+  exit 1
 fi
 
 if ! hash aws 2>/dev/null; then
   echo "aws cli is not install."
-  return 1
+  exit 1
 fi
 
 if ! hash pcregrep 2>/dev/null; then
   echo "pcre (pcregrep) is not install."
-  return 1
+  exit 1
 fi
 
 #Retrive some file location
@@ -81,7 +81,7 @@ else
   while read line; do
         if [ $line == "[$profile]" ]; then exist=true; fi;
   done <<< "$(grep "\[.*\]" "$credentialFileLocation")";
-  if [ $exist == false ]; then echo "Error: Profile not in the list." && return 1; fi
+  if [ $exist == false ]; then echo "Error: Profile not in the list." && exit 1; fi
 fi
 
 #Get the username and the arn mfa user
@@ -91,7 +91,7 @@ if [ -z $username ]; then
 fi
 
 arnmfa=$(aws iam list-virtual-mfa-devices --profile $profile | jq ".VirtualMFADevices[].SerialNumber" | grep mfa/$username | sed 's/"//g')
-if [ -z $arnmfa ]; then echo "No found MFA. You need to create one." && return 1; fi
+if [ -z $arnmfa ]; then echo "No found MFA. You need to create one." && exit 1; fi
 
 read -p "Enter your MFA token : " tokenMFA
 
@@ -118,5 +118,5 @@ echo "Switching profile : export AWS_DEFAULT_PROFILE=$pname"
 #Unset var for security
 unset sak ak sessionToken credentials
 
-return 0
+exit 0
 

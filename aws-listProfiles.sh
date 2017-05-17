@@ -7,4 +7,4 @@ fi
 
 while read line; do
   echo "$line"
-done <<< "$(grep "\[.*\]" "$credentialFileLocation")";
+done <<< "$(grep "\[.*\]" "$credentialFileLocation" | sed "s/[]]//g" | sed "s/[[]//g")";
