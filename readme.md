@@ -4,7 +4,8 @@
 Retreive a token MFA and put it on your credentials file 
 - [X] CAN : Check if a session profile is expired
 - [X] CAN : If the you want, you can delete 1 or multiple session profiles if expired
-- [X] List profiles
+- [X] List profiles if AWS_PROFILE is not specify
+- [X] Select AWS_DEFAULT_PROFILE if the user want to use default profile
 - [X] Retreive the token session with the profile selected
 - [X] Update your credentials and config with a new profile and the token session
 

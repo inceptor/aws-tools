@@ -66,22 +66,35 @@ fi
 #Get some info by the user
 read -p "Name of profile to CREATE (enter to generate automatically): " pname
 
-echo "List of profiles configurated : "
-while read line; do
-      echo "$line"
-done <<< "$(grep "\[.*\]" "$credentialFileLocation" | sed "s/[]]//g" | sed "s/[[]//g")";
+#Check if AWS_PROFILE is configured
+if [ -z $AWS_PROFILE ]; then 
+  echo "List of profiles configurated : "
+  while read line; do
+        echo "$line"
+  done <<< "$(grep "\[.*\]" "$credentialFileLocation" | sed "s/[]]//g" | sed "s/[[]//g")";
 
-read -p "Name of profile to fetch credentials (enter to use default profile): " profile
+  read -p "Name of profile to fetch credentials (enter to use default profile): " profile
+else
+  echo "DETECTED : Profile with AWS_PROFILE and it will be use : $AWS_PROFILE"
+  profile="$AWS_PROFILE"
+fi
 
 if [ -z $pname ]; then pname="mfa-$RANDOM"; fi
-if [ -z $profile ]; then profile="default"
+if [ -z $profile ]; then 
+  #Check if AWS_DEFAULT_PROFILE is set
+  if ! [ -z $AWS_DEFAULT_PROFILE ]; then
+    echo "DETECTED : Profile with AWS_DEFAULT_PROFILE and it will be use : $AWS_DEFAULT_PROFILE"
+    profile="$AWS_DEFAULT_PROFILE"
+  else
+    profile="default"
+  fi
 else
   #Check if profile exist
   exist=false
   while read line; do
         if [ $line == "[$profile]" ]; then exist=true; fi;
   done <<< "$(grep "\[.*\]" "$credentialFileLocation")";
-  if [ $exist == false ]; then echo "Error: Profile not in the list." && exit 1; fi
+  if [ $exist == false ]; then echo "Error: Profile '$profile' not in the list." && exit 1; fi
 fi
 
 #Get the username and the arn mfa user
