@@ -1,27 +1,115 @@
 #!/bin/bash
 
+#############
+# FUNCTIONS #
+#############
+
 #Check if package are install
-if ! hash jq 2>/dev/null; then
-  echo "jq is not install."
-  exit 1
-fi
+function checkPackage() {
+  if ! hash jq 2>/dev/null; then
+    echo "jq is not install."
+    exit 1
+  fi
+  
+  if ! hash aws 2>/dev/null; then
+    echo "aws cli is not install."
+    exit 1
+  fi
+  
+  if ! hash pcregrep 2>/dev/null; then
+    echo "pcre (pcregrep) is not install."
+    exit 1
+  fi
+}
 
-if ! hash aws 2>/dev/null; then
-  echo "aws cli is not install."
-  exit 1
-fi
-
-if ! hash pcregrep 2>/dev/null; then
-  echo "pcre (pcregrep) is not install."
-  exit 1
-fi
-
-#Check if the script is use with arg
-if [ $# -gt 3 ]; then
+#Return usage if arg value is incorect
+function usage() {
   echo "Usage :"
   echo "$0 MFAtoken [profileName] [profileToFetchCredentials]"
   echo "TIPS: You can launch the script with interactive mode (no arg)."
   exit 1
+}
+
+#Check if profile exist
+#Arg1 = profileName
+function checkProfileExist() {
+  exist=false
+  while read line; do
+        if [ $line == "[$1]" ]; then exist=true; fi;
+  done <<< "$(grep "\[.*\]" "$credentialFileLocation")";
+  if [ $exist == false ]; then echo "Error: Profile '$1' not in the list." && exit 1; fi
+}
+
+function cleanSessionProfile() {
+  #Security check (check if var env profile can crash the script)
+  if ! [ -z "$AWS_PROFILE" ]; then
+    checkProfileExist "$AWS_PROFILE"
+  fi
+  
+  if ! [ -z "$AWS_DEFAULT_PROFILE" ]; then
+    checkProfileExist "$AWS_DEFAULT_PROFILE"
+  fi  
+
+  #Find expired session using token only
+  matching=$(pcregrep -M "\[.*\]\n((aws_access_key_id|aws_secret_access_key).*\n)*aws_session_token.*" "$credentialFileLocation" | grep "\[.*\]" | sed "s/[]]//g" | sed "s/[[]//g")
+  if ! [ -z "$matching" ]; then
+    echo "Searching expired mfa profile :"
+    matchingExpired=()
+    while read line; do
+        if ! aws sts get-caller-identity --profile $line 2>/dev/null 1>/dev/null; then
+          echo "EXPIRATED : $line";
+          matchingExpired+=("$line")
+        fi
+    done <<< "$matching";
+
+    if [ ${#matchingExpired[@]} -ne 0 ]; then
+      #delete expired session
+      read -p "Do you want to delete ALL the above profile ?! (Yes)?" clean
+      if [ "$clean" == "Yes" ]; then
+        for (( i=0; i < ${#matchingExpired[@]}; i++ )); do
+          echo "$(pcregrep -Mv "\[profile ${matchingExpired[i]}\]\n(region|output).*(\n)?" "$configFileLocation")" > "$configFileLocation"
+          echo "$(pcregrep -Mv "\[${matchingExpired[i]}\]\n((aws_access_key_id|aws_secret_access_key).*\n)*aws_session_token.*" "$credentialFileLocation")" > "$credentialFileLocation"
+        done
+        echo "ALL profiles are deleted."
+      else
+        echo "No profile deleted."
+      fi
+    else
+      echo "Profile MFA session expirated no found."
+    fi
+  else
+    echo "You have no profile MFA session."
+  fi
+}
+
+function putConfigFile() {
+  #To the credential file
+  echo "[$pname]" >> $credentialFileLocation
+  echo "aws_access_key_id = $ak" >> $credentialFileLocation
+  echo "aws_secret_access_key = $sak" >> $credentialFileLocation
+  echo "aws_session_token = $sessionToken" >> $credentialFileLocation
+  
+  #To the config file
+  echo "[profile $pname]" >> $configFileLocation
+  echo "region = $(aws configure get region --profile $profile)" >> $configFileLocation
+  echo "output = json" >> $configFileLocation
+  
+  #Print info for user
+  echo "The session profile is setup :"
+  echo "Profile name : $pname"
+  echo "Expiration : $(echo $credentials |jq '.Credentials.Expiration')"
+  echo "Switching profile : export AWS_DEFAULT_PROFILE=$pname"
+}
+
+###############
+# MAIN SCRIPT #
+###############
+
+checkPackage
+
+#Check if the script is use with arg
+if [ $# -gt 3 ]; then
+  usage
 elif [ $# -gt 0 ]; then
   tokenMFA="$1"
 
@@ -48,41 +136,14 @@ if [ -z "$configFileLocation" ]; then
     configFileLocation=~/.aws/config
 fi
 
+
 if [ $interactiveMode == "true" ]; then  
   #Cleanning conf file
   read -p "Do you want to list MFA profile expired (Y/N)?" clean
   
   #Find expired session using token only
   if [ "$clean" == "Y" ] || [ "$clean" == "y" ]; then
-    matching=$(pcregrep -M "\[.*\]\n((aws_access_key_id|aws_secret_access_key).*\n)*aws_session_token.*" "$credentialFileLocation" | grep "\[.*\]" | sed "s/[]]//g" | sed "s/[[]//g")
-    if ! [ -z "$matching" ]; then
-      echo "Searching expired mfa profile :"
-      matchingExpired=()
-      while read line; do
-          if ! aws sts get-caller-identity --profile $line 2>/dev/null 1>/dev/null; then
-            echo "EXPIRATED : $line";
-            matchingExpired+=("$line")
-          fi
-      done <<< "$matching";
-  
-      if [ ${#matchingExpired[@]} -ne 0 ]; then
-        #delete expired session
-        read -p "Do you want to delete ALL the above profile ?! (Yes)?" clean
-        if [ "$clean" == "Yes" ]; then
-          for (( i=0; i < ${#matchingExpired[@]}; i++ )); do
-            echo "$(pcregrep -Mv "\[profile ${matchingExpired[i]}\]\n(region|output).*(\n)?" "$configFileLocation")" > "$configFileLocation"
-            echo "$(pcregrep -Mv "\[${matchingExpired[i]}\]\n((aws_access_key_id|aws_secret_access_key).*\n)*aws_session_token.*" "$credentialFileLocation")" > "$credentialFileLocation"
-          done
-          echo "ALL profiles are deleted."
-        else
-          echo "No profile deleted."
-        fi
-      else
-        echo "Profile MFA session expirated no found."
-      fi
-    else
-      echo "You have no profile MFA session."
-    fi
+    cleanSessionProfile
   fi
 fi
 
@@ -115,14 +176,9 @@ if [ -z $profile ]; then
   else
     profile="default"
   fi
-else
-  #Check if profile exist
-  exist=false
-  while read line; do
-        if [ $line == "[$profile]" ]; then exist=true; fi;
-  done <<< "$(grep "\[.*\]" "$credentialFileLocation")";
-  if [ $exist == false ]; then echo "Error: Profile '$profile' not in the list." && exit 1; fi
 fi
+
+checkProfileExist "$profile"
 
 #Get the username and the arn mfa user
 username=$(aws iam get-user --profile $profile | jq ".User.UserName" | sed 's/"//g')
@@ -148,19 +204,7 @@ sak=$(echo $credentials | jq '.Credentials.SecretAccessKey' | sed 's/"//g')
 ak=$(echo $credentials | jq '.Credentials.AccessKeyId' | sed 's/"//g')
 sessionToken=$(echo $credentials | jq '.Credentials.SessionToken' | sed 's/"//g')
 
-echo "[$pname]" >> $credentialFileLocation
-echo "aws_access_key_id = $ak" >> $credentialFileLocation
-echo "aws_secret_access_key = $sak" >> $credentialFileLocation
-echo "aws_session_token = $sessionToken" >> $credentialFileLocation
-
-echo "[profile $pname]" >> $configFileLocation
-echo "region = $(aws configure get region --profile $profile)" >> $configFileLocation
-echo "output = json" >> $configFileLocation
-
-echo "The session profile is setup :"
-echo "Profile name : $pname"
-echo "Expiration : $(echo $credentials |jq '.Credentials.Expiration')"
-echo "Switching profile : export AWS_DEFAULT_PROFILE=$pname"
+putConfigFile
 
 #Unset var for security
 unset sak ak sessionToken credentials
