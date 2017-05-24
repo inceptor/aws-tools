@@ -7,17 +7,17 @@
 #Check if package are install
 function checkPackage() {
   if ! hash jq 2>/dev/null; then
-    echo "jq is not install."
+    echo "jq is not installed."
     exit 1
   fi
   
   if ! hash aws 2>/dev/null; then
-    echo "aws cli is not install."
+    echo "aws cli is not installed."
     exit 1
   fi
   
   if ! hash pcregrep 2>/dev/null; then
-    echo "pcre (pcregrep) is not install."
+    echo "pcre (pcregrep) is not installed."
     exit 1
   fi
 }
@@ -70,15 +70,15 @@ function cleanSessionProfile() {
           echo "$(pcregrep -Mv "\[profile ${matchingExpired[i]}\]\n(region|output).*(\n)?" "$configFileLocation")" > "$configFileLocation"
           echo "$(pcregrep -Mv "\[${matchingExpired[i]}\]\n((aws_access_key_id|aws_secret_access_key).*\n)*aws_session_token.*" "$credentialFileLocation")" > "$credentialFileLocation"
         done
-        echo "ALL profiles are deleted."
+        echo "All profiles are deleted."
       else
         echo "No profile deleted."
       fi
     else
-      echo "Profile MFA session expirated no found."
+      echo "MFA Profile session expirated not found."
     fi
   else
-    echo "You have no profile MFA session."
+    echo "You have no MFA profile session."
   fi
 }
 
@@ -95,10 +95,10 @@ function putConfigFile() {
   echo "output = json" >> $configFileLocation
   
   #Print info for user
-  echo "The session profile is setup :"
-  echo "Profile name : $pname"
-  echo "Expiration : $(echo $credentials |jq '.Credentials.Expiration')"
-  echo "Switching profile : export AWS_DEFAULT_PROFILE=$pname"
+  echo "The session profile is setup:"
+  echo "Profile name: $pname"
+  echo "Expiration: $(echo $credentials |jq '.Credentials.Expiration')"
+  echo "Switching profile: export AWS_DEFAULT_PROFILE=$pname"
 }
 
 ###############
@@ -125,7 +125,7 @@ else
   interactiveMode=true
 fi
 
-#Retrive some file location
+#Retrieve some file location
 credentialFileLocation=${AWS_SHARED_CREDENTIALS_FILE};
 if [ -z "$credentialFileLocation" ]; then
     credentialFileLocation=~/.aws/credentials
@@ -139,7 +139,7 @@ fi
 
 if [ $interactiveMode == "true" ]; then  
   #Cleanning conf file
-  read -p "Do you want to list MFA profile expired (Y/N)?" clean
+  read -p "Do you want to list expired MFA profile  (y/N)?" clean
   
   #Find expired session using token only
   if [ "$clean" == "Y" ] || [ "$clean" == "y" ]; then
@@ -149,7 +149,7 @@ fi
 
 if [ $interactiveMode == true ]; then
   #Get some info by the user
-  read -p "Name of profile to CREATE (enter to generate automatically): " pname
+  read -p "New MFA profile name (type enter to generate automatically): " pname
 fi
 
 #Check if AWS_PROFILE is configured
@@ -160,7 +160,7 @@ if [ -z $AWS_PROFILE ]; then
       echo "$line"
     done <<< "$(grep "\[.*\]" "$credentialFileLocation" | sed "s/[]]//g" | sed "s/[[]//g")";
 
-    read -p "Name of profile to fetch credentials (enter to use default profile): " profile
+    read -p "Existing source profile name (type enter to use default profile): " profile
   fi
 else
   echo "DETECTED : Profile with AWS_PROFILE and it will be use : $AWS_PROFILE"
@@ -183,11 +183,11 @@ checkProfileExist "$profile"
 #Get the username and the arn mfa user
 username=$(aws iam get-user --profile $profile | jq ".User.UserName" | sed 's/"//g')
 if [ -z $username ]; then
-  read -p "ERROR: Can not retreive username (Probably: iam:GetUser refused). Enter it manually : " username;
+  read -p "ERROR: Can not retrieve username (Probably: iam:GetUser refused). Enter it manually : " username;
 fi
 
 arnmfa=$(aws iam list-virtual-mfa-devices --profile $profile | jq ".VirtualMFADevices[].SerialNumber" | grep mfa/$username | sed 's/"//g')
-if [ -z $arnmfa ]; then echo "No found MFA. You need to create one." && exit 1; fi
+if [ -z $arnmfa ]; then echo "No MFA found. You need to create one." && exit 1; fi
 
 if [ $interactiveMode == "true" ]; then
   read -p "Enter your MFA token : " tokenMFA
