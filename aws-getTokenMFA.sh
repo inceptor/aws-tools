@@ -25,8 +25,8 @@ function checkPackage() {
 #Return usage if arg value is incorect
 function usage() {
   echo "Usage :"
-  echo "$0 MFAtoken [profileName] [profileToFetchCredentials]"
-  echo "TIPS: You can launch the script with interactive mode (no arg)."
+  echo "$0 MFAtoken [profileNameToCreate] [profileFetchCredentials]" >&2
+  echo "TIPS: You can launch the script with interactive mode (no arg)." >&2
   exit 1
 }
 
@@ -95,10 +95,12 @@ function putConfigFile() {
   echo "output = json" >> $configFileLocation
   
   #Print info for user
-  echo "The session profile is setup:"
-  echo "Profile name: $pname"
-  echo "Expiration: $(echo $credentials |jq '.Credentials.Expiration')"
-  echo "Switching profile: export AWS_DEFAULT_PROFILE=$pname"
+  echo "The session profile is setup :"
+  echo "Profile name : $pname"
+  echo "Expiration : $(echo $credentials |jq '.Credentials.Expiration')"
+  echo "For switching profile execute this commands :" 
+  echo "export AWS_DEFAULT_PROFILE=$pname"
+  echo "export AWS_PROFILE=$pname"
 }
 
 ###############
